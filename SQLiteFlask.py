@@ -14,39 +14,54 @@ schema = {
     "properties": {
         "id": {
             "description": "A unique identifier for the report of an incident",
+            "type": "string"     # id drin behalten für den primary key
+        },
+        "report_category": {
+            "description": "The category of the report: an attack on a system.",
             "type": "string"
         },
-        "discovery_date": {
-            "description": "Timestamp of the discovery of the incident",
+        "report_type": {
+            "description": "The type of the report.",
             "type": "string"
         },
-        "vendor": {
-            "description": "The vendor of the product",
+        "timestamp": {
+            "description": "The timestamp when the attack took place.",
             "type": "string"
         },
-        "product": {
-            "description": "The full name of the product",
+        "source_key": {
+            "description": "The type of the reported object: an IP.",
             "type": "string"
         },
-        "item_number": {
-            "description": "The stock keeping unit, article or item number of the product.",
+        "source_value": {
+            "description": "The IP of the system performing the attack.",
             "type": "string"
         },
-        "product_version": {
-            "description": "The version of the given product.",
+        "confidence_level": {
+            "description": "The level of confidence put into the accuracy of the report..",
+            "type": "number"
+        },
+        "version": {
+            "description": "The version number of the data format used for the report.",
+            "type": "integer"
+        },
+        "report_subcategory": {
+            "description": "The type of attack performed.",
             "type": "string"
         },
-        "firmware": {
-            "description": "The firmware that is being used on the product.",
-            "type": "string"
+        "ip_protocol_number": {
+            "description": "The IANA assigned decimal internet protocol number of the attack connection.",
+            "type": "integer"
         },
-        "summary": {
-            "description": "A summary of the incident.",
-            "type": "string"
-        }
+        "ip_version": {
+            "description": "The IP version of the attack connection.",
+            "type": "integer"
+        },
+
     },
-    "required": ["id", "discovery_date", "summary"]
+    "required": ["id", "report_type", "timestamp"]
 }
+
+# need: correct descriptions, correct required properties and type max min etc.
 
 
 
@@ -56,9 +71,10 @@ def handle_report():
     try:
         validate(instance=data, schema=schema)  # Daten validieren
         db = get_db()
-        db.execute('INSERT INTO reports (id, discovery_date, vendor, product, item_number, product_version, firmware, summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                   (data['id'], data['discovery_date'], data['vendor'], data['product'], data['item_number'],
-                    data['product_version'], data['firmware'], data['summary']))
+        db.execute('INSERT INTO reports (id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                   (data['id'], data['report_category'], data['report_type'], data['timestamp'], data['source_key'],
+                    data['source_value'], data['confidence_level'], data['version'], data['report_subcategory'],
+                    data['ip_protocol_number'], data['ip_version']))
         db.commit()
         return jsonify({"status": "success", "message": "Report added successfully"}), 200
     except ValidationError as ve:
@@ -97,16 +113,20 @@ def init_db():
         cursor.execute("""
                 CREATE TABLE IF NOT EXISTS reports(
                         id TEXT PRIMARY KEY,
-                        discovery_date TEXT,
-                        vendor TEXT,
-                        product TEXT,
-                        item_number TEXT,
-                        product_version TEXT,
-                        firmware TEXT,
-                        summary TEXT
+                        report_category TEXT,
+                        report_type TEXT,
+                        timestamp TEXT,
+                        source_key TEXT,
+                        source_value TEXT,
+                        confidence_level REAL,  # REAL ist float oder int in SQLite
+                        version INTEGER,
+                        report_subcategory TEXT,
+                        ip_protocol_number INTEGER,
+                        ip_version INTEGER
                 )
         """)
         db.commit()
+
 
 @app.route('/')
 def home():
