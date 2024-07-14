@@ -6,83 +6,49 @@ app = Flask(__name__)
 
 DATABASE = 'database.db'
 
+
 schema = {
-    "$schema": "https://json-schema.org/draft/2020-12-schema",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "This document records the details of an incident",
     "title": "Record of a SIEM Incident",
     "type": "object",
     "properties": {
-        "id": {
-            "description": "A unique identifier for the report of an incident",
-            "type": "string"     # id drin behalten für den primary key
-        },
-        "report_category": {
-            "description": "The category of the report: an attack on a system.",
-            "type": "string"
-        },
-        "report_type": {
-            "description": "The type of the report.",
-            "type": "string"
-        },
-        "timestamp": {
-            "description": "The timestamp when the attack took place.",
-            "type": "string"
-        },
-        "source_key": {
-            "description": "The type of the reported object: an IP.",
-            "type": "string"
-        },
-        "source_value": {
-            "description": "The IP of the system performing the attack.",
-            "type": "string"
-        },
-        "confidence_level": {
-            "description": "The level of confidence put into the accuracy of the report..",
-            "type": "number"
-        },
-        "version": {
-            "description": "The version number of the data format used for the report.",
-            "type": "integer"
-        },
-        "report_subcategory": {
-            "description": "The type of attack performed.",
-            "type": "string"
-        },
-        "ip_protocol_number": {
-            "description": "The IANA assigned decimal internet protocol number of the attack connection.",
-            "type": "integer"
-        },
-        "ip_version": {
-            "description": "The IP version of the attack connection.",
-            "type": "integer"
-        },
-
+        "id": {"type": "string"},
+        "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
+        "report_type": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "source_key": {"type": "string", "enum": ["ip"]},
+        "source_value": {"type": "string"},
+        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "version": {"type": "integer", "enum": [2]},
+        "report_subcategory": {"type": "string", "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp", "login", "malware", "scan", "other"]},
+        "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
+        "ip_version": {"type": "integer", "enum": [4, 6]}
     },
-    "required": ["id", "report_type", "timestamp"]
+    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version", "ip_protocol_number", "ip_version"]
 }
-
-# need: correct descriptions, correct required properties and type max min etc.
-
-
 
 @app.route('/api/report', methods=['POST'])
 def handle_report():
     data = request.get_json()
     try:
-        validate(instance=data, schema=schema)  # Daten validieren
+        validate(instance=data, schema=schema)  # Validate data
         db = get_db()
-        db.execute('INSERT INTO reports (id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                   (data['id'], data['report_category'], data['report_type'], data['timestamp'], data['source_key'],
-                    data['source_value'], data['confidence_level'], data['version'], data['report_subcategory'],
-                    data['ip_protocol_number'], data['ip_version']))
+        db.execute('''
+            INSERT INTO reports (id, report_category, report_type, timestamp, source_key, source_value, 
+            confidence_level, version, report_subcategory, ip_protocol_number, ip_version) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (data['id'], data['report_category'], data['report_type'], data['timestamp'], data['source_key'],
+            data['source_value'], data['confidence_level'], data['version'], data['report_subcategory'],
+            data['ip_protocol_number'], data['ip_version']))
         db.commit()
         return jsonify({"status": "success", "message": "Report added successfully"}), 200
     except ValidationError as ve:
-        return jsonify({"error": "Invalid data, " + str(ve)}), 400
+        return jsonify({"error": "Invalid data: " + str(ve)}), 400
     except sqlite3.Error as e:
-        return jsonify({"error": "Database error, " + str(e)}), 500
+        return jsonify({"error": "Database error: " + str(e)}), 500
     except Exception as e:
-        return jsonify({"error": "Error, " + str(e)}), 500
+        return jsonify({"error": "Unexpected error: " + str(e)}), 500
 
 @app.route('/reports', methods=['GET'])
 def view_reports():
@@ -91,8 +57,6 @@ def view_reports():
     cursor.execute('SELECT * FROM reports')
     reports = cursor.fetchall()
     return jsonify({"reports": reports})
-
-
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -111,43 +75,41 @@ def init_db():
         db = get_db()
         cursor = db.cursor()
         cursor.execute("""
-                CREATE TABLE IF NOT EXISTS reports(
-                        id TEXT PRIMARY KEY,
-                        report_category TEXT,
-                        report_type TEXT,
-                        timestamp TEXT,
-                        source_key TEXT,
-                        source_value TEXT,
-                        confidence_level REAL,  # REAL ist float oder int in SQLite
-                        version INTEGER,
-                        report_subcategory TEXT,
-                        ip_protocol_number INTEGER,
-                        ip_version INTEGER
-                )
+            CREATE TABLE IF NOT EXISTS reports(
+                id TEXT PRIMARY KEY,
+                report_category TEXT,
+                report_type TEXT,
+                timestamp TEXT,
+                source_key TEXT,
+                source_value TEXT,
+                confidence_level REAL,
+                version INTEGER,
+                report_subcategory TEXT,
+                ip_protocol_number INTEGER,
+                ip_version INTEGER
+            )
         """)
         db.commit()
-
 
 @app.route('/')
 def home():
     return "Welcome to the SQLite3 Flask App!"
 
-@app.route('/add', methods=['POST'])
-def add_entry():
-    content = request.json['content']
-    db = get_db()
-    db.execute('INSERT INTO entries (content) VALUES (?)', (content,))
-    db.commit()
-    return jsonify({"status": "success", "message": "Entry added"})
-
-@app.route('/entries', methods=['GET'])
-def view_entries():
-    db = get_db()
-    cursor = db.cursor()
-    cursor.execute('SELECT * FROM entries')
-    entries = cursor.fetchall()
-    return jsonify({"entries": entries})
-
 if __name__ == '__main__':
-	init_db()
-	app.run(host='0.0.0.0', port=5000, debug=True)
+    init_db()
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+# example:
+# curl -X POST http://10.0.0.101:5000/api/report -H "Content-Type: application/json" -d '{
+#  "id": "unique-reports-id-1234",
+#  "report_category": "eu.acdc.attack",
+#  "report_type": "Attempted SQL injection",
+#  "timestamp": "2024-07-14T12:00:00Z",
+#  "source_key": "ip",
+#  "source_value": "192.168.1.1",
+#  "confidence_level": 0.9,
+#  "version": 2,
+#  "report_subcategory": "dos.http",
+#  "ip_protocol_number": 6,
+#  "ip_version": 4
+# }'
