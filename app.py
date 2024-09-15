@@ -25,7 +25,7 @@ app.config.update(
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# JSON schema for validation
+# Updated JSON schema for validation
 schema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "This document records the details of an incident",
@@ -33,12 +33,23 @@ schema = {
     "type": "object",
     "properties": {
         "id": {"type": "string"},
-        "discovery_date": {"type": "string"},
-        "vendor": {"type": "string"},
-        "product": {"type": "string"},
-        "item_number": {"type": "string"}
+        "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
+        "report_type": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "source_key": {"type": "string", "enum": ["ip"]},
+        "source_value": {"type": "string"},
+        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "version": {"type": "integer", "enum": [2]},
+        "report_subcategory": {
+            "type": "string",
+            "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
+                     "login", "malware", "scan", "other"]
+        },
+        "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
+        "ip_version": {"type": "integer", "enum": [4, 6]}
     },
-    "required": ["id", "discovery_date", "vendor", "product", "item_number"]
+    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
+                 "ip_protocol_number", "ip_version"]
 }
 
 def get_db():
@@ -47,18 +58,29 @@ def get_db():
     return conn
 
 def init_db():
-    # Initializes the database if it doesn't exist
+    # Initializes the database with the new schema
     with get_db() as db:
         cursor = db.cursor()
+        # Drop the table if it exists to avoid conflicts with the new schema
+        cursor.execute('DROP TABLE IF EXISTS incidents')
+        
+        # Create the table with the new schema
         cursor.execute(
             'CREATE TABLE IF NOT EXISTS incidents ('
             'id TEXT PRIMARY KEY, '
-            'discovery_date TEXT, '
-            'vendor TEXT, '
-            'product TEXT, '
-            'item_number TEXT)'
+            'report_category TEXT, '
+            'report_type TEXT, '
+            'timestamp TEXT, '
+            'source_key TEXT, '
+            'source_value TEXT, '
+            'confidence_level REAL, '
+            'version INTEGER, '
+            'report_subcategory TEXT, '
+            'ip_protocol_number INTEGER, '
+            'ip_version INTEGER)'
         )
         db.commit()
+
 
 @app.route('/')
 def home():
@@ -76,45 +98,55 @@ def view_database():
     try:
         with get_db() as db:
             cursor = db.cursor()
-            cursor.execute('SELECT id, discovery_date, vendor, product, item_number FROM incidents')
+            cursor.execute('SELECT id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version FROM incidents')
             rows = cursor.fetchall()
             data = [
-                {"id": row[0], "discovery_date": row[1], "vendor": row[2], "product": row[3], "item_number": row[4]}
-                for row in rows
+                {
+                    "id": row[0],
+                    "report_category": row[1],
+                    "report_type": row[2],
+                    "timestamp": row[3],
+                    "source_key": row[4],
+                    "source_value": row[5],
+                    "confidence_level": row[6],
+                    "version": row[7],
+                    "report_subcategory": row[8],
+                    "ip_protocol_number": row[9],
+                    "ip_version": row[10]
+                } for row in rows
             ]
         return render_template('database_view.html', data=data)
     except sqlite3.Error as e:
         logging.error(f"Database query failed: {e}")
-        return jsonify({"message": "An error occurred while fetching the database contents."}), 500
+        return jsonify({"message": f"An error occurred while fetching the database contents: {e}"}), 500
 
-@app.route('/upload-json-files', methods=['POST'])
-@csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
-def upload_json_files():
-    json_folder = app.config['JSON_FOLDER']
-    if not os.path.exists(json_folder):
-        return jsonify({"message": "JSON folder not found."}), 404
-
-    json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
-    if not json_files:
-        return jsonify({"message": "No JSON files to upload."}), 404
-
-    success = True
-    for filename in json_files:
-        try:
-            with open(os.path.join(json_folder, filename), 'r') as file:
-                data = json.load(file)
-                validate(instance=data, schema=schema)
-                insert_into_db(data)
-        except (json.JSONDecodeError, ValidationError) as e:
-            logging.error(f"Validation error in file {filename}: {e}")
-            success = False
-        except sqlite3.IntegrityError:
-            logging.error(f"Integrity error: Duplicate ID in file {filename}")
-            success = False
-
-    if success:
-        return jsonify({"message": "All JSON files validated and uploaded."}), 200
-    return jsonify({"message": "Errors occurred while uploading JSON files."}), 400
+def insert_into_db(data):
+    # Inserts a new record into the incidents table
+    try:
+        with get_db() as db:
+            cursor = db.cursor()
+            cursor.execute(
+                'INSERT INTO incidents (id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                (
+                    data['id'],
+                    data['report_category'],
+                    data.get('report_type'),  # report_type is optional
+                    data['timestamp'],
+                    data['source_key'],
+                    data['source_value'],
+                    data['confidence_level'],
+                    data['version'],
+                    data.get('report_subcategory'),  # report_subcategory is optional
+                    data['ip_protocol_number'],
+                    data['ip_version']
+                )
+            )
+            db.commit()
+        return True  # Insert was successful
+    except sqlite3.IntegrityError:
+        logging.error(f"Duplicate entry: {data['id']}")
+        return False  # Duplicate found
 
 def validate_and_upload_json_files():
     # Validates and uploads JSON files from the specified folder
@@ -141,7 +173,8 @@ def validate_and_upload_json_files():
         with open(file_path, 'r') as file:
             try:
                 data = json.load(file)
-                validate(instance=data, schema=schema)
+                # Enforce strict schema validation
+                validate(instance=data, schema=schema)  # This will raise ValidationError if the JSON does not conform to the schema
                 if insert_into_db(data):
                     has_successful_upload = True  # Successfully uploaded at least one file
                 else:
@@ -163,25 +196,15 @@ def validate_and_upload_json_files():
     else:
         return "Errors occurred while uploading JSON files.", False
 
-# doesnt work, not distinguishing between errors - its always errors occured while uploading json files even when just all json files been uploaded
 
-
-def insert_into_db(data):
-    # Inserts a new record into the incidents table
-    try:
-        with get_db() as db:
-            cursor = db.cursor()
-            cursor.execute(
-                'INSERT INTO incidents (id, discovery_date, vendor, product, item_number) '
-                'VALUES (?, ?, ?, ?, ?)',
-                (data['id'], data['discovery_date'], data['vendor'], data['product'], data['item_number'])
-            )
-            db.commit()
-        return True  # Insert was successful
-    except sqlite3.IntegrityError:
-        logging.error(f"Duplicate entry: {data['id']}")
-        return False  # Duplicate found
-
+@app.route('/upload-json-files', methods=['POST'])
+@csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
+def upload_json_files():
+    # Call validate_and_upload_json_files to handle the upload
+    message, success = validate_and_upload_json_files()
+    if success:
+        return jsonify({"message": message}), 200
+    return jsonify({"message": message}), 400
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
@@ -190,7 +213,7 @@ def reset_database():
     try:
         with get_db() as db:
             cursor = db.cursor()
-            cursor.execute('DELETE FROM incidents')
+            cursor.execute('DELETE FROM incidents')  # This deletes all rows but keeps the table structure
             db.commit()
         return jsonify({"message": "Database has been reset."}), 200
     except sqlite3.Error as e:
@@ -198,5 +221,5 @@ def reset_database():
         return jsonify({"message": "An error occurred while resetting the database."}), 500
 
 if __name__ == '__main__':
-    init_db()  # Ensure the database is initialized
+    init_db()  # Ensure the database is initialized with the new schema
     app.run(host='0.0.0.0', port=5001, debug=True)
