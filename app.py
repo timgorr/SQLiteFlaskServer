@@ -4,7 +4,7 @@ import sqlite3
 import os
 import json
 import logging
-from jsonschema import validate, ValidationError
+from jsonschema import validate, ValidationError, FormatChecker
 
 app = Flask(__name__)
 
@@ -173,8 +173,8 @@ def validate_and_upload_json_files():
         with open(file_path, 'r') as file:
             try:
                 data = json.load(file)
-                # Enforce strict schema validation
-                validate(instance=data, schema=schema)  # This will raise ValidationError if the JSON does not conform to the schema
+                # Enforce strict schema validation with format checking
+                validate(instance=data, schema=schema, format_checker=FormatChecker())  # Ensure format_checker is included
                 if insert_into_db(data):
                     has_successful_upload = True  # Successfully uploaded at least one file
                 else:
@@ -183,6 +183,14 @@ def validate_and_upload_json_files():
             except (json.JSONDecodeError, ValidationError) as e:
                 logging.error(f"Validation error in file {filename}: {e}")
                 has_validation_errors = True  # At least one file had a validation error
+            except sqlite3.IntegrityError as e:
+                logging.error(f"Database integrity error: {e}")
+                has_duplicates = True  # Mark as duplicate error
+            except Exception as e:
+                logging.error(f"Unexpected error in file {filename}: {e}")
+                return f"Unexpected error: {str(e)}", False
+
+# timestamp isnt checked as a format
 
     # Construct the response message based on the results
     if has_successful_upload:
@@ -195,7 +203,6 @@ def validate_and_upload_json_files():
         return "All JSON files failed validation.", False
     else:
         return "Errors occurred while uploading JSON files.", False
-
 
 @app.route('/upload-json-files', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution

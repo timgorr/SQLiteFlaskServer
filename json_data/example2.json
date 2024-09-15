@@ -1,0 +1,14 @@
+{
+    "id": "incident1234",
+    "report_category": "1",
+    "report_type": "incident",
+    "timestamp": "asd",
+    "source_key": "ip",
+    "source_value": "192.168.1.1",
+    "confidence_level": 0.95,
+    "version": 2,
+    "report_subcategory": "malware",
+    "ip_protocol_number": 6,
+    "ip_version": 4
+  }
+  
