@@ -110,7 +110,7 @@ def init_db():
 
 @app.route('/')
 def home():
-    return "Welcome to the SQLite3 Flask App!"
+    return "Moin!"
 
 @app.route('/add', methods=['POST'])
 def add_entry():
