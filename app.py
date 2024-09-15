@@ -124,12 +124,17 @@ def validate_and_upload_json_files():
         return "JSON folder not found.", False  # Return error message and failure
 
     json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
-    
+
     if not json_files:
         logging.info("No JSON files to upload. All files are already processed or the folder is empty.")
         return "No JSON files to upload.", False
 
-    success = True
+    # Flags to keep track of what happened
+    has_successful_upload = False
+    has_duplicates = False
+    has_validation_errors = False
+
+    # Process each file
     for filename in json_files:
         file_path = os.path.join(json_folder, filename)
         logging.info(f"Processing file: {file_path}")
@@ -137,17 +142,28 @@ def validate_and_upload_json_files():
             try:
                 data = json.load(file)
                 validate(instance=data, schema=schema)
-                insert_into_db(data)
+                if insert_into_db(data):
+                    has_successful_upload = True  # Successfully uploaded at least one file
+                else:
+                    logging.info(f"File {filename} is a duplicate.")
+                    has_duplicates = True  # Mark that at least one file is a duplicate
             except (json.JSONDecodeError, ValidationError) as e:
                 logging.error(f"Validation error in file {filename}: {e}")
-                success = False  # Indicate failure
-            except sqlite3.IntegrityError:
-                logging.error(f"Database error: Duplicate ID in file {filename}")
-                success = False  # Indicate failure
+                has_validation_errors = True  # At least one file had a validation error
 
-    if success:
-        return "All JSON files validated and uploaded.", True
-    return "Errors occurred while uploading JSON files.", False
+    # Construct the response message based on the results
+    if has_successful_upload:
+        if has_validation_errors:
+            return "Some JSON files were uploaded successfully, but some files failed validation.", True
+        return "All new JSON files validated and uploaded successfully.", True
+    elif has_duplicates and not has_successful_upload and not has_validation_errors:
+        return "All JSON files are already uploaded (duplicates).", False
+    elif has_validation_errors and not has_successful_upload:
+        return "All JSON files failed validation.", False
+    else:
+        return "Errors occurred while uploading JSON files.", False
+
+# doesnt work, not distinguishing between errors - its always errors occured while uploading json files even when just all json files been uploaded
 
 
 def insert_into_db(data):
@@ -161,8 +177,11 @@ def insert_into_db(data):
                 (data['id'], data['discovery_date'], data['vendor'], data['product'], data['item_number'])
             )
             db.commit()
+        return True  # Insert was successful
     except sqlite3.IntegrityError:
-        raise
+        logging.error(f"Duplicate entry: {data['id']}")
+        return False  # Duplicate found
+
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
