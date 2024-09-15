@@ -116,6 +116,40 @@ def upload_json_files():
         return jsonify({"message": "All JSON files validated and uploaded."}), 200
     return jsonify({"message": "Errors occurred while uploading JSON files."}), 400
 
+def validate_and_upload_json_files():
+    # Validates and uploads JSON files from the specified folder
+    json_folder = app.config['JSON_FOLDER']
+    if not os.path.exists(json_folder):
+        logging.error("JSON folder not found.")
+        return "JSON folder not found.", False  # Return error message and failure
+
+    json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
+    
+    if not json_files:
+        logging.info("No JSON files to upload. All files are already processed or the folder is empty.")
+        return "No JSON files to upload.", False
+
+    success = True
+    for filename in json_files:
+        file_path = os.path.join(json_folder, filename)
+        logging.info(f"Processing file: {file_path}")
+        with open(file_path, 'r') as file:
+            try:
+                data = json.load(file)
+                validate(instance=data, schema=schema)
+                insert_into_db(data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logging.error(f"Validation error in file {filename}: {e}")
+                success = False  # Indicate failure
+            except sqlite3.IntegrityError:
+                logging.error(f"Database error: Duplicate ID in file {filename}")
+                success = False  # Indicate failure
+
+    if success:
+        return "All JSON files validated and uploaded.", True
+    return "Errors occurred while uploading JSON files.", False
+
+
 def insert_into_db(data):
     # Inserts a new record into the incidents table
     try:
