@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database View</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Flex container for the title and back button -->
+        <div class="header-container">
+            <!-- Header Section -->
+            <h1>Database Content</h1>
+            <!-- Back button to navigate to the home page -->
+            <a href="/" class="button">Back to Home</a>
+        </div>
+        
+        <!-- Table to display the database content -->
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Discovery Date</th>
+                    <th>Vendor</th>
+                    <th>Product</th>
+                    <th>Item Number</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td>{{ row['id'] }}</td>
+                    <td>{{ row['discovery_date'] }}</td>
+                    <td>{{ row['vendor'] }}</td>
+                    <td>{{ row['product'] }}</td>
+                    <td>{{ row['item_number'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
