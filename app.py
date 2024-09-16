@@ -8,24 +8,24 @@ from jsonschema import validate, ValidationError, FormatChecker
 
 app = Flask(__name__)
 
-# Configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')  # Use an environment variable for the secret key
-app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # Use an environment variable for the database path
-app.config['JSON_FOLDER'] = os.getenv('JSON_FOLDER', 'json_data')  # Folder containing JSON files
+# config, not sure if will be important (for security reasons)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')  # env var for secret key
+app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # env var for database path
+app.config['JSON_FOLDER'] = os.getenv('JSON_FOLDER', 'json_data')  # specified folder with JSON files
 
-# Enable CSRF Protection
+# if CSRF protection needed (Flask-WTF)
 csrf = CSRFProtect(app)
 
-# Set secure cookie options
+# secure cookies
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True  # Set to True if using HTTPS
+    SESSION_COOKIE_SECURE=True  # Set True if using HTTPS
 )
 
-# Set up logging
+# logging
 logging.basicConfig(level=logging.INFO)
 
-# Updated JSON schema for validation
+# JSON schema
 schema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "This document records the details of an incident",
@@ -53,18 +53,17 @@ schema = {
 }
 
 def get_db():
-    # Establishes a database connection
+    # database connection
     conn = sqlite3.connect(app.config['DATABASE'])
     return conn
 
 def init_db():
-    # Initializes the database with the new schema
     with get_db() as db:
         cursor = db.cursor()
         # Drop the table if it exists to avoid conflicts with the new schema
         cursor.execute('DROP TABLE IF EXISTS incidents')
         
-        # Create the table with the new schema
+        # table creation
         cursor.execute(
             'CREATE TABLE IF NOT EXISTS incidents ('
             'id TEXT PRIMARY KEY, '
@@ -84,17 +83,17 @@ def init_db():
 
 @app.route('/')
 def home():
-    # Render the home page
+    # home page Render
     return render_template('index.html')
 
 @app.route('/upload-page')
 def upload_page():
-    # Render the upload page
+    # upload page render
     return render_template('upload.html')
 
 @app.route('/view-database')
 def view_database():
-    # Fetch all entries from the database and render them
+    # Fetch and render of all database entries
     try:
         with get_db() as db:
             cursor = db.cursor()
@@ -121,7 +120,7 @@ def view_database():
         return jsonify({"message": f"An error occurred while fetching the database contents: {e}"}), 500
 
 def insert_into_db(data):
-    # Inserts a new record into the incidents table
+    # insert of new record into incidents table
     try:
         with get_db() as db:
             cursor = db.cursor()
@@ -143,17 +142,17 @@ def insert_into_db(data):
                 )
             )
             db.commit()
-        return True  # Insert was successful
+        return True  # Insert successful
     except sqlite3.IntegrityError:
         logging.error(f"Duplicate entry: {data['id']}")
         return False  # Duplicate found
 
 def validate_and_upload_json_files():
-    # Validates and uploads JSON files from the specified folder
+    # Validation and upload of the specified JSON Folder
     json_folder = app.config['JSON_FOLDER']
     if not os.path.exists(json_folder):
         logging.error("JSON folder not found.")
-        return "JSON folder not found.", False  # Return error message and failure
+        return "JSON folder not found.", False  
 
     json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
 
@@ -161,7 +160,7 @@ def validate_and_upload_json_files():
         logging.info("No JSON files to upload. All files are already processed or the folder is empty.")
         return "No JSON files to upload.", False
 
-    # Flags to keep track of what happened
+    # Variables to check, what error happened
     has_successful_upload = False
     has_duplicates = False
     has_validation_errors = False
@@ -173,26 +172,26 @@ def validate_and_upload_json_files():
         with open(file_path, 'r') as file:
             try:
                 data = json.load(file)
-                # Enforce strict schema validation with format checking
-                validate(instance=data, schema=schema, format_checker=FormatChecker())  # Ensure format_checker is included
+                # schema validation checking (format checker not working - timestamp can be any TEXT)
+                validate(instance=data, schema=schema, format_checker=FormatChecker())
                 if insert_into_db(data):
                     has_successful_upload = True  # Successfully uploaded at least one file
                 else:
                     logging.info(f"File {filename} is a duplicate.")
-                    has_duplicates = True  # Mark that at least one file is a duplicate
+                    has_duplicates = True  # at least one file is a duplicate
             except (json.JSONDecodeError, ValidationError) as e:
                 logging.error(f"Validation error in file {filename}: {e}")
                 has_validation_errors = True  # At least one file had a validation error
             except sqlite3.IntegrityError as e:
                 logging.error(f"Database integrity error: {e}")
-                has_duplicates = True  # Mark as duplicate error
+                has_duplicates = True  # duplicate error
             except Exception as e:
                 logging.error(f"Unexpected error in file {filename}: {e}")
                 return f"Unexpected error: {str(e)}", False
 
 # timestamp isnt checked as a format
 
-    # Construct the response message based on the results
+    # response message based on the results
     if has_successful_upload:
         if has_validation_errors:
             return "Some JSON files were uploaded successfully, but some files failed validation.", True
@@ -205,7 +204,7 @@ def validate_and_upload_json_files():
         return "Errors occurred while uploading JSON files.", False
 
 @app.route('/upload-json-files', methods=['POST'])
-@csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
+@csrf.exempt  # Disable CSRF if you're calling via AJAX ?
 def upload_json_files():
     # Call validate_and_upload_json_files to handle the upload
     message, success = validate_and_upload_json_files()
@@ -214,13 +213,13 @@ def upload_json_files():
     return jsonify({"message": message}), 400
 
 @app.route('/reset-database', methods=['POST'])
-@csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX, but use with caution
+@csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX ?
 def reset_database():
     # Clears all data in the incidents table
     try:
         with get_db() as db:
             cursor = db.cursor()
-            cursor.execute('DELETE FROM incidents')  # This deletes all rows but keeps the table structure
+            cursor.execute('DELETE FROM incidents')  # deletes all rows but keeps the table structure
             db.commit()
         return jsonify({"message": "Database has been reset."}), 200
     except sqlite3.Error as e:
@@ -228,5 +227,5 @@ def reset_database():
         return jsonify({"message": "An error occurred while resetting the database."}), 500
 
 if __name__ == '__main__':
-    init_db()  # Ensure the database is initialized with the new schema
+    init_db()
     app.run(host='0.0.0.0', port=5001, debug=True)
