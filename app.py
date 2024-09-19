@@ -17,6 +17,7 @@ app.config['JSON_FOLDER'] = os.getenv('JSON_FOLDER', 'json_data')  # specified f
 # if CSRF protection needed (Flask-WTF)
 csrf = CSRFProtect(app)
 
+
 # secure cookies
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -57,6 +58,10 @@ def get_db():
     # database connection
     conn = sqlite3.connect(app.config['DATABASE'])
     return conn
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204 
 
 def init_db():
     with get_db() as db:
