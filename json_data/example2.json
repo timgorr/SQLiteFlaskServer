@@ -1,8 +1,8 @@
 {
     "id": "incident1234",
-    "report_category": "1",
+    "report_category": "eu.acdc.attack",
     "report_type": "incident",
-    "timestamp": "asd",
+    "timestamp": "2024-10-15T14:30:00Z",
     "source_key": "ip",
     "source_value": "192.168.1.1",
     "confidence_level": 0.95,
