@@ -12,7 +12,7 @@ app = Flask(__name__)
 # config, not sure if will be important (for security reasons)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')  # env var for secret key
 app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # env var for database path
-app.config['JSON_FOLDER'] = os.getenv('JSON_FOLDER', 'json_data')  # specified folder with JSON files
+app.config['JSON_FOLDER'] = '/mnt/client_data'  # specified folder with JSON files on remote server
 
 # if CSRF protection needed (Flask-WTF)
 csrf = CSRFProtect(app)
