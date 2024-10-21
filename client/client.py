@@ -10,7 +10,6 @@ schema = {
     "title": "Record of a SIEM Incident",
     "type": "object",
     "properties": {
-        "id": {"type": "string"},
         "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
         "report_type": {"type": "string"},
         "timestamp": {"type": "string", "format": "date-time"},
@@ -26,7 +25,7 @@ schema = {
         "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
         "ip_version": {"type": "integer", "enum": [4, 6]}
     },
-    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
+    "required": ["report_category", "report_type", "timestamp", "source_key", "source_value", "confidence_level", "version", "report_subcategory",
                  "ip_protocol_number", "ip_version"]
 }
 

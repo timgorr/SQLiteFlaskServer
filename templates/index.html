@@ -42,7 +42,6 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
                     <th>Report Category</th>
                     <th>Report Type</th>
                     <th>Timestamp</th>
@@ -58,15 +57,14 @@
             <tbody>
                 {% for row in data %}
                 <tr>
-                    <td>{{ row['id'] }}</td>
                     <td>{{ row['report_category'] }}</td>
-                    <td>{{ row['report_type'] or 'N/A' }}</td> <!-- Optional field -->
+                    <td>{{ row['report_type'] or 'N/A' }}</td> 
                     <td>{{ row['timestamp'] }}</td>
                     <td>{{ row['source_key'] }}</td>
                     <td>{{ row['source_value'] }}</td>
                     <td>{{ row['confidence_level'] }}</td>
                     <td>{{ row['version'] }}</td>
-                    <td>{{ row['report_subcategory'] or 'N/A' }}</td> <!-- Optional field -->
+                    <td>{{ row['report_subcategory'] or 'N/A' }}</td> 
                     <td>{{ row['ip_protocol_number'] }}</td>
                     <td>{{ row['ip_version'] }}</td>
                 </tr>

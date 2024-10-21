@@ -1,6 +1,6 @@
 {
-    "id": "incident123",
     "report_category": "eu.acdc.attack",
+    "report_type": "incident",
     "timestamp": "2024-09-15T14:30:00Z",
     "source_key": "ip",
     "source_value": "192.168.1.1",
@@ -10,4 +10,3 @@
     "ip_protocol_number": 6,
     "ip_version": 4
   }
-  

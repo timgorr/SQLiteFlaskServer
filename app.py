@@ -34,7 +34,6 @@ schema = {
     "title": "Record of a SIEM Incident",
     "type": "object",
     "properties": {
-        "id": {"type": "string"},
         "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
         "report_type": {"type": "string"},
         "timestamp": {"type": "string", "format": "date-time"},
@@ -50,7 +49,7 @@ schema = {
         "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
         "ip_version": {"type": "integer", "enum": [4, 6]}
     },
-    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
+    "required": ["report_category", "report_type", "timestamp", "source_key", "source_value", "confidence_level", "version", "report_subcategory",
                  "ip_protocol_number", "ip_version"]
 }
 
@@ -72,7 +71,6 @@ def init_db():
         # table creation
         cursor.execute(
             'CREATE TABLE IF NOT EXISTS incidents ('
-            'id TEXT PRIMARY KEY, '
             'report_category TEXT, '
             'report_type TEXT, '
             'timestamp TEXT, '
@@ -85,6 +83,8 @@ def init_db():
             'ip_version INTEGER)'
         )
         db.commit()
+
+                    # 'id TEXT PRIMARY KEY, ' without primary key specific datasets no mechanism to uniquly identify each record: composite primary key? combination
 
 
 # @app.route('/')
@@ -103,21 +103,20 @@ def view_database():
     try:
         with get_db() as db:
             cursor = db.cursor()
-            cursor.execute('SELECT id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version FROM incidents')
+            cursor.execute('SELECT report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version FROM incidents')
             rows = cursor.fetchall()
             data = [
                 {
-                    "id": row[0],
-                    "report_category": row[1],
-                    "report_type": row[2],
-                    "timestamp": row[3],
-                    "source_key": row[4],
-                    "source_value": row[5],
-                    "confidence_level": row[6],
-                    "version": row[7],
-                    "report_subcategory": row[8],
-                    "ip_protocol_number": row[9],
-                    "ip_version": row[10]
+                    "report_category": row[0],
+                    "report_type": row[1],
+                    "timestamp": row[2],
+                    "source_key": row[3],
+                    "source_value": row[4],
+                    "confidence_level": row[5],
+                    "version": row[6],
+                    "report_subcategory": row[7],
+                    "ip_protocol_number": row[8],
+                    "ip_version": row[9]
                 } for row in rows
             ]
         return render_template('index.html', data=data)
@@ -131,18 +130,17 @@ def insert_into_db(data):
         with get_db() as db:
             cursor = db.cursor()
             cursor.execute(
-                'INSERT INTO incidents (id, report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO incidents (report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 (
-                    data['id'],
                     data['report_category'],
-                    data.get('report_type'),  # report_type is optional
+                    data.get('report_type'),  
                     data['timestamp'],
                     data['source_key'],
                     data['source_value'],
                     data['confidence_level'],
                     data['version'],
-                    data.get('report_subcategory'),  # report_subcategory is optional
+                    data.get('report_subcategory'), 
                     data['ip_protocol_number'],
                     data['ip_version']
                 )
@@ -150,7 +148,7 @@ def insert_into_db(data):
             db.commit()
         return True  # Insert successful
     except sqlite3.IntegrityError:
-        logging.error(f"Duplicate entry: {data['id']}")
+        logging.error(f"Duplicate entry: ")
         return False  # Duplicate found
 
 def validate_and_upload_json_files(data_list):
@@ -216,6 +214,7 @@ def upload_json_files():
     if success:
         return jsonify({"message": message}), 200
     return jsonify({"message": message}), 400
+ls
 
 
 @app.route('/reset-database', methods=['POST'])
