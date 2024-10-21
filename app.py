@@ -27,32 +27,32 @@ app.config.update(
 # logging
 logging.basicConfig(level=logging.INFO)
 
-# # JSON schema
-# schema = {
-#     "$schema": "https://json-schema.org/draft/2020-12/schema",
-#     "description": "This document records the details of an incident",
-#     "title": "Record of a SIEM Incident",
-#     "type": "object",
-#     "properties": {
-#         "id": {"type": "string"},
-#         "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
-#         "report_type": {"type": "string"},
-#         "timestamp": {"type": "string", "format": "date-time"},
-#         "source_key": {"type": "string", "enum": ["ip"]},
-#         "source_value": {"type": "string"},
-#         "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-#         "version": {"type": "integer", "enum": [2]},
-#         "report_subcategory": {
-#             "type": "string",
-#             "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
-#                      "login", "malware", "scan", "other"]
-#         },
-#         "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
-#         "ip_version": {"type": "integer", "enum": [4, 6]}
-#     },
-#     "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
-#                  "ip_protocol_number", "ip_version"]
-# }
+# JSON schema
+schema = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "This document records the details of an incident",
+    "title": "Record of a SIEM Incident",
+    "type": "object",
+    "properties": {
+        "id": {"type": "string"},
+        "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
+        "report_type": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "source_key": {"type": "string", "enum": ["ip"]},
+        "source_value": {"type": "string"},
+        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "version": {"type": "integer", "enum": [2]},
+        "report_subcategory": {
+            "type": "string",
+            "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
+                     "login", "malware", "scan", "other"]
+        },
+        "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
+        "ip_version": {"type": "integer", "enum": [4, 6]}
+    },
+    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
+                 "ip_protocol_number", "ip_version"]
+}
 
 def get_db():
     # database connection
@@ -87,17 +87,17 @@ def init_db():
         db.commit()
 
 
+# @app.route('/')
+# def home():
+#     # home page Render
+#     return render_template('index.html')
+
+# @app.route('/upload-page')
+# def upload_page():
+#     # upload page render
+#     return render_template('upload.html')
+
 @app.route('/')
-def home():
-    # home page Render
-    return render_template('index.html')
-
-@app.route('/upload-page')
-def upload_page():
-    # upload page render
-    return render_template('upload.html')
-
-@app.route('/view-database')
 def view_database():
     # Fetch and render of all database entries
     try:
@@ -120,7 +120,7 @@ def view_database():
                     "ip_version": row[10]
                 } for row in rows
             ]
-        return render_template('database_view.html', data=data)
+        return render_template('index.html', data=data)
     except sqlite3.Error as e:
         logging.error(f"Database query failed: {e}")
         return jsonify({"message": f"An error occurred while fetching the database contents: {e}"}), 500
@@ -153,70 +153,70 @@ def insert_into_db(data):
         logging.error(f"Duplicate entry: {data['id']}")
         return False  # Duplicate found
 
-def validate_and_upload_json_files():
-    # Validation and upload of the specified JSON Folder
-    json_folder = app.config['JSON_FOLDER']
-    if not os.path.exists(json_folder):
-        logging.error("JSON folder not found.")
-        return "JSON folder not found.", False  
+def validate_and_upload_json_files(data_list):
+    # Validation and upload of JSON data received from the client
+    if not data_list:
+        logging.error("No JSON data received.")
+        return "No JSON data received.", False
 
-    json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
-
-    if not json_files:
-        logging.info("No JSON files to upload. All files are already processed or the folder is empty.")
-        return "No JSON files to upload.", False
-
-    # Variables to check, what error happened
+    # Variables to check what error happened
     has_successful_upload = False
     has_duplicates = False
     has_validation_errors = False
 
-    # Process each file
-    for filename in json_files:
-        file_path = os.path.join(json_folder, filename)
-        logging.info(f"Processing file: {file_path}")
-        with open(file_path, 'r') as file:
-            try:
-                data = json.load(file)
-                # schema validation checking (format checker not working - timestamp can be any TEXT)
-                validate(instance=data, schema=schema, format_checker=FormatChecker())
-                if insert_into_db(data):
-                    has_successful_upload = True  # Successfully uploaded at least one file
-                else:
-                    logging.info(f"File {filename} is a duplicate.")
-                    has_duplicates = True  # at least one file is a duplicate
-            except (json.JSONDecodeError, ValidationError) as e:
-                logging.error(f"Validation error in file {filename}: {e}")
-                has_validation_errors = True  # At least one file had a validation error
-            except sqlite3.IntegrityError as e:
-                logging.error(f"Database integrity error: {e}")
-                has_duplicates = True  # duplicate error
-            except Exception as e:
-                logging.error(f"Unexpected error in file {filename}: {e}")
-                return f"Unexpected error: {str(e)}", False
+    # Process each JSON data item
+    for data in data_list:
+        try:
+            # schema validation checking (format checker not working - timestamp can be any TEXT)
+            validate(instance=data, schema=schema, format_checker=FormatChecker())
+            if insert_into_db(data):
+                has_successful_upload = True  # Successfully uploaded at least one file
+            else:
+                logging.info(f"Duplicate data found: {data}")
+                has_duplicates = True  # At least one entry is a duplicate
+        except (json.JSONDecodeError, ValidationError) as e:
+            logging.error(f"Validation error: {e}")
+            has_validation_errors = True  # At least one file had a validation error
+        except sqlite3.IntegrityError as e:
+            logging.error(f"Database integrity error: {e}")
+            has_duplicates = True  # Duplicate error
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            return f"Unexpected error: {str(e)}", False
 
-# timestamp isnt checked as a format
-
-    # response message based on the results
+    # Response message based on the results
     if has_successful_upload:
         if has_validation_errors:
-            return "Some JSON files were uploaded successfully, but some files failed validation.", True
-        return "All new JSON files validated and uploaded successfully.", True
+            return "Some JSON data was uploaded successfully, but some entries failed validation.", True
+        return "All new JSON data validated and uploaded successfully.", True
     elif has_duplicates and not has_successful_upload and not has_validation_errors:
-        return "All JSON files are already uploaded (duplicates).", False
+        return "All JSON data is already uploaded (duplicates).", False
     elif has_validation_errors and not has_successful_upload:
-        return "All JSON files failed validation.", False
+        return "All JSON data failed validation.", False
     else:
-        return "Errors occurred while uploading JSON files.", False
+        return "Errors occurred while uploading JSON data.", False
+
 
 @app.route('/upload-json-files', methods=['POST'])
-@csrf.exempt  # Disable CSRF if you're calling via AJAX ?
+@csrf.exempt  # Disable CSRF if you're calling via AJAX
 def upload_json_files():
-    # Call validate_and_upload_json_files to handle the upload
-    message, success = validate_and_upload_json_files()
+    # Check if the request contains JSON data
+    if not request.is_json:
+        return jsonify({"message": "Invalid input, JSON data required."}), 400
+
+    # Get the JSON data from the request
+    json_data = request.get_json()
+
+    # If the data is expected to be a list of JSON objects
+    if not isinstance(json_data, list):
+        json_data = [json_data]
+
+    # Call validate_and_upload_json_files to handle the upload and validation
+    message, success = validate_and_upload_json_files(json_data)
     if success:
         return jsonify({"message": message}), 200
     return jsonify({"message": message}), 400
+
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX ?
