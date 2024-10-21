@@ -9,50 +9,50 @@ from jsonschema import validate, ValidationError, FormatChecker
 
 app = Flask(__name__)
 
-# config, not sure if will be important (for security reasons)
+
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')  # env var for secret key
 app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # env var for database path
-app.config['JSON_FOLDER'] = '/mnt/client_data'  # specified folder with JSON files on remote server
+# app.config['JSON_FOLDER'] = '/mnt/client_data'  # specified folder with JSON files on remote server
 
 # if CSRF protection needed (Flask-WTF)
 csrf = CSRFProtect(app)
 
 
-# secure cookies
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True  # Set True if using HTTPS
+    SESSION_COOKIE_SECURE=True  
 )
 
 # logging
 logging.basicConfig(level=logging.INFO)
 
-# JSON schema
-schema = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "This document records the details of an incident",
-    "title": "Record of a SIEM Incident",
-    "type": "object",
-    "properties": {
-        "id": {"type": "string"},
-        "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
-        "report_type": {"type": "string"},
-        "timestamp": {"type": "string", "format": "date-time"},
-        "source_key": {"type": "string", "enum": ["ip"]},
-        "source_value": {"type": "string"},
-        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-        "version": {"type": "integer", "enum": [2]},
-        "report_subcategory": {
-            "type": "string",
-            "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
-                     "login", "malware", "scan", "other"]
-        },
-        "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
-        "ip_version": {"type": "integer", "enum": [4, 6]}
-    },
-    "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
-                 "ip_protocol_number", "ip_version"]
-}
+# # JSON schema
+# schema = {
+#     "$schema": "https://json-schema.org/draft/2020-12/schema",
+#     "description": "This document records the details of an incident",
+#     "title": "Record of a SIEM Incident",
+#     "type": "object",
+#     "properties": {
+#         "id": {"type": "string"},
+#         "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
+#         "report_type": {"type": "string"},
+#         "timestamp": {"type": "string", "format": "date-time"},
+#         "source_key": {"type": "string", "enum": ["ip"]},
+#         "source_value": {"type": "string"},
+#         "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+#         "version": {"type": "integer", "enum": [2]},
+#         "report_subcategory": {
+#             "type": "string",
+#             "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
+#                      "login", "malware", "scan", "other"]
+#         },
+#         "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
+#         "ip_version": {"type": "integer", "enum": [4, 6]}
+#     },
+#     "required": ["id", "report_category", "timestamp", "source_key", "source_value", "confidence_level", "version",
+#                  "ip_protocol_number", "ip_version"]
+# }
 
 def get_db():
     # database connection

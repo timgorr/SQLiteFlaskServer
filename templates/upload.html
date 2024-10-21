@@ -7,22 +7,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script>
       // button click logic and AJAX POST request for uploading JSON files
-        function uploadJSONFiles() {
-            fetch('/upload-json-files', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('response').textContent = data.message;
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                document.getElementById('response').textContent = 'An error occurred during the upload.';
-            });
-        }
+        // function uploadJSONFiles() {
+        //     fetch('/upload-json-files', {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //     })
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         document.getElementById('response').textContent = data.message;
+        //     })
+        //     .catch((error) => {
+        //         console.error('Error:', error);
+        //         document.getElementById('response').textContent = 'An error occurred during the upload.';
+        //     });
+        // }
 
         // button click logic and AJAX POST request for resetting the database
         function resetDatabase() {
@@ -49,7 +49,7 @@
     <div class="container">
         <h1>Update/Reset Database</h1>
 
-        <a href="#" class="button" style="margin-top: 10px;" onclick="uploadJSONFiles(); return false;">Upload JSON Files</a>
+        <!-- <a href="#" class="button" style="margin-top: 10px;" onclick="uploadJSONFiles(); return false;">Upload JSON Files</a> -->
 
         <a href="#" class="button margin-top" style="margin-top: 8px;" onclick="resetDatabase(); return false;">Reset Database</a>
 
