@@ -1,0 +1,10 @@
+{
+    "report_category": "eu.acdc.malware",
+    "report_type": "Bot from honeypot capture",
+    "timestamp": "2014-06-15T15:47:12Z",
+    "source_key": "malware",
+    "source_value":
+    "933ff380eb1448c5c583796fdc6ce842eec14a23b686fff4672c85a7ee9d7d0a",
+    "confidence_level": 1.0,
+    "version": 2
+}

@@ -1,20 +1,16 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 from flask_wtf import CSRFProtect
 import sqlite3
 import os
-import json
 import logging
-from jsonschema import validate, ValidationError, FormatChecker
-# from markupsafe import Markup
 
 app = Flask(__name__)
 
 
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')  # env var for secret key
-app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # env var for database path
-# app.config['JSON_FOLDER'] = '/mnt/client_data'  # specified folder with JSON files on remote server
 
-# if CSRF protection needed (Flask-WTF)
+app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'database.db')  # env var for database path
+
+
 csrf = CSRFProtect(app)
 
 
@@ -24,37 +20,12 @@ app.config.update(
     SESSION_COOKIE_SECURE=True  
 )
 
-# logging
+# logging MOIN
 logging.basicConfig(level=logging.INFO)
 
-# JSON schema
-schema = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "This document records the details of an incident",
-    "title": "Record of a SIEM Incident",
-    "type": "object",
-    "properties": {
-        "report_category": {"type": "string", "enum": ["eu.acdc.attack"]},
-        "report_type": {"type": "string"},
-        "timestamp": {"type": "string", "format": "date-time"},
-        "source_key": {"type": "string", "enum": ["ip"]},
-        "source_value": {"type": "string"},
-        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-        "version": {"type": "integer", "enum": [2]},
-        "report_subcategory": {
-            "type": "string",
-            "enum": ["abuse", "abuse.spam", "compromise", "data", "dos", "dos.dns", "dos.http", "dos.tcp", "dos.udp",
-                     "login", "malware", "scan", "other"]
-        },
-        "ip_protocol_number": {"type": "integer", "minimum": 0, "maximum": 255},
-        "ip_version": {"type": "integer", "enum": [4, 6]}
-    },
-    "required": ["report_category", "report_type", "timestamp", "source_key", "source_value", "confidence_level", "version", "report_subcategory",
-                 "ip_protocol_number", "ip_version"]
-}
+
 
 def get_db():
-    # database connection
     conn = sqlite3.connect(app.config['DATABASE'])
     return conn
 
@@ -62,50 +33,58 @@ def get_db():
 def favicon():
     return '', 204 
 
+
 def init_db():
-    with get_db() as db:
-        cursor = db.cursor()
-        # Drop the table if it exists to avoid conflicts with the new schema
-        cursor.execute('DROP TABLE IF EXISTS incidents')
-        
-        # table creation
-        cursor.execute(
-            'CREATE TABLE IF NOT EXISTS incidents ('
-            'report_category TEXT, '
-            'report_type TEXT, '
-            'timestamp TEXT, '
-            'source_key TEXT, '
-            'source_value TEXT, '
-            'confidence_level REAL, '
-            'version INTEGER, '
-            'report_subcategory TEXT, '
-            'ip_protocol_number INTEGER, '
-            'ip_version INTEGER)'
-        )
-        db.commit()
-
-                    # 'id TEXT PRIMARY KEY, ' without primary key specific datasets no mechanism to uniquly identify each record: composite primary key? combination
+    conn = sqlite3.connect('database.db') 
+    cursor = conn.cursor()
 
 
-# @app.route('/')
-# def home():
-#     # home page Render
-#     return render_template('index.html')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS incidents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        report_category TEXT,
+        report_type TEXT,
+        timestamp TEXT,
+        source_key TEXT,
+        source_value TEXT,
+        confidence_level TEXT,
+        version INTEGER,
+        report_subcategory TEXT,
+        ip_protocol_number TEXT,
+        ip_version TEXT,
+        UNIQUE (report_category, report_type, timestamp, source_key, source_value, confidence_level)
+    )
+    ''')
 
-# @app.route('/upload-page')
-# def upload_page():
-#     # upload page render
-#     return render_template('upload.html')
+    # Create the malware_reports table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS malware_reports (
+        report_category TEXT,
+        report_type TEXT,
+        timestamp TEXT,
+        source_key TEXT,
+        source_value TEXT,
+        confidence_level REAL,
+        version INTEGER,
+        UNIQUE (report_category, report_type, timestamp, source_key, source_value)
+    )
+    ''')
+
+ 
+    conn.commit()
+    conn.close()
+               
+
 
 @app.route('/')
 def view_database():
-    # Fetch and render of all database entries
     try:
         with get_db() as db:
             cursor = db.cursor()
+
             cursor.execute('SELECT report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version FROM incidents')
-            rows = cursor.fetchall()
-            data = [
+            incidents_rows = cursor.fetchall()
+            incidents_data = [
                 {
                     "report_category": row[0],
                     "report_type": row[1],
@@ -117,30 +96,46 @@ def view_database():
                     "report_subcategory": row[7],
                     "ip_protocol_number": row[8],
                     "ip_version": row[9]
-                } for row in rows
+                } for row in incidents_rows
             ]
-        return render_template('index.html', data=data)
+
+
+            cursor.execute('SELECT report_category, report_type, timestamp, source_key, source_value,confidence_level, version FROM malware_reports')
+            malware_rows = cursor.fetchall()
+            malware_data = [
+                {
+                    "report_category": row[0],
+                    "report_type": row[1],
+                    "timestamp": row[2],
+                    "source_key": row[3],
+                    "source_value": row[4],
+                    "confidence_level": row[5],
+                    "version": row[6]
+                } for row in malware_rows
+            ]
+
+        return render_template('index.html', incidents_data=incidents_data, malware_data=malware_data)
     except sqlite3.Error as e:
         logging.error(f"Database query failed: {e}")
         return jsonify({"message": f"An error occurred while fetching the database contents: {e}"}), 500
 
-def insert_into_db(data):
-    # insert of new record into incidents table
+def insert_into_incidents(data):
     try:
         with get_db() as db:
             cursor = db.cursor()
             cursor.execute(
-                'INSERT INTO incidents (report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                '''INSERT INTO incidents 
+                (report_category, report_type, timestamp, source_key, source_value, confidence_level, version, report_subcategory, ip_protocol_number, ip_version) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                 (
                     data['report_category'],
-                    data.get('report_type'),  
+                    data.get('report_type'),
                     data['timestamp'],
                     data['source_key'],
                     data['source_value'],
                     data['confidence_level'],
                     data['version'],
-                    data.get('report_subcategory'), 
+                    data.get('report_subcategory'),
                     data['ip_protocol_number'],
                     data['ip_version']
                 )
@@ -148,83 +143,144 @@ def insert_into_db(data):
             db.commit()
         return True  # Insert successful
     except sqlite3.IntegrityError:
-        logging.error(f"Duplicate entry: ")
+        logging.error(f"Duplicate entry: {data}")
         return False  # Duplicate found
 
-def validate_and_upload_json_files(data_list):
-    # Validation and upload of JSON data received from the client
-    if not data_list:
-        logging.error("No JSON data received.")
-        return "No JSON data received.", False
 
-    # Variables to check what error happened
-    has_successful_upload = False
-    has_duplicates = False
-    has_validation_errors = False
+def is_malware_duplicate(data):
+    conn = get_db()
+    cursor = conn.cursor()
+    query = """
+    SELECT COUNT(*) FROM malware_reports 
+    WHERE report_category = ? AND report_type = ? AND timestamp = ? 
+    AND source_key = ? AND source_value = ?
+    """
+    values = (
+        data['report_category'],
+        data['report_type'],
+        data['timestamp'],
+        data['source_key'],
+        data['source_value']
+    )
+    cursor.execute(query, values)
+    result = cursor.fetchone()[0]
+    conn.close()
+    return result > 0  # true falls duplicate gefunden
 
-    # Process each JSON data item
-    for data in data_list:
-        try:
-            # schema validation checking (format checker not working - timestamp can be any TEXT)
-            validate(instance=data, schema=schema, format_checker=FormatChecker())
-            if insert_into_db(data):
-                has_successful_upload = True  # Successfully uploaded at least one file
-            else:
-                logging.info(f"Duplicate data found: {data}")
-                has_duplicates = True  # At least one entry is a duplicate
-        except (json.JSONDecodeError, ValidationError) as e:
-            logging.error(f"Validation error: {e}")
-            has_validation_errors = True  # At least one file had a validation error
-        except sqlite3.IntegrityError as e:
-            logging.error(f"Database integrity error: {e}")
-            has_duplicates = True  # Duplicate error
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-            return f"Unexpected error: {str(e)}", False
 
-    # Response message based on the results
-    if has_successful_upload:
-        if has_validation_errors:
-            return "Some JSON data was uploaded successfully, but some entries failed validation.", True
-        return "All new JSON data validated and uploaded successfully.", True
-    elif has_duplicates and not has_successful_upload and not has_validation_errors:
-        return "All JSON data is already uploaded (duplicates).", False
-    elif has_validation_errors and not has_successful_upload:
-        return "All JSON data failed validation.", False
-    else:
-        return "Errors occurred while uploading JSON data.", False
+
+def insert_into_malware_reports(data):
+    try:
+        with get_db() as db:
+            cursor = db.cursor()
+            cursor.execute(
+                '''INSERT INTO malware_reports 
+                (report_category, report_type, timestamp, source_key, source_value, cpe, sample_b64, confidence_level, version) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (
+                    data['report_category'],
+                    data['report_type'],
+                    data['timestamp'],
+                    data['source_key'],
+                    data['source_value'],
+                    data['cpe'],
+                    data['sample_b64'],
+                    data['confidence_level'],
+                    data['version']
+                )
+            )
+            db.commit()
+        return True  # Insert successful
+    except sqlite3.IntegrityError:
+        logging.error(f"Duplicate entry: {data}")
+        return False  # Duplicate found
+
+
 
 
 @app.route('/upload-json-files', methods=['POST'])
 @csrf.exempt  # Disable CSRF if you're calling via AJAX
 def upload_json_files():
-    # Check if the request contains JSON data
+    # check ob überhaupt in json
     if not request.is_json:
         return jsonify({"message": "Invalid input, JSON data required."}), 400
 
-    # Get the JSON data from the request
+    # json von request
     json_data = request.get_json()
 
-    # If the data is expected to be a list of JSON objects
+    # json liste
     if not isinstance(json_data, list):
         json_data = [json_data]
 
-    # Call validate_and_upload_json_files to handle the upload and validation
-    message, success = validate_and_upload_json_files(json_data)
-    if success:
-        return jsonify({"message": message}), 200
-    return jsonify({"message": message}), 400
-ls
+    # each json upload process
+    has_successful_upload = False
+    has_duplicates = False
 
+    for data in json_data:
+        try:
+            # Check which table 
+            if data['report_category'] == "eu.acdc.attack":
+                if is_duplicate(data):  
+                    logging.info(f"Duplicate data found: {data}")
+                    has_duplicates = True
+                    continue
+                if insert_into_incidents(data):  
+                    has_successful_upload = True
+
+            elif data['report_category'] == "eu.acdc.malware":
+                if is_malware_duplicate(data):  
+                    logging.info(f"Duplicate data found: {data}")
+                    has_duplicates = True
+                    continue
+                if insert_into_malware_reports(data):  
+                    has_successful_upload = True
+
+        except sqlite3.IntegrityError as e:
+            logging.error(f"Database integrity error: {e}")
+            has_duplicates = True
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+            return jsonify({"message": f"Unexpected error: {str(e)}"}), 500
+
+
+    if has_successful_upload:
+        return jsonify({"message": "All new JSON data uploaded successfully."}), 200
+    elif has_duplicates:
+        return jsonify({"message": "Some or all JSON data is already uploaded (duplicates)."}), 400
+    else:
+        return jsonify({"message": "Errors occurred while uploading JSON data."}), 400
+
+
+# duplicate check in incidents table
+def is_duplicate(data):
+    conn = get_db()
+    cursor = conn.cursor()
+    query = """
+    SELECT COUNT(*) FROM incidents 
+    WHERE report_category = ? AND report_type = ? AND timestamp = ? 
+    AND source_key = ? AND source_value = ? AND confidence_level = ?
+    """
+    values = (
+        data['report_category'],
+        data['report_type'],
+        data['timestamp'],
+        data['source_key'],
+        data['source_value'],
+        data['confidence_level']
+    )
+    cursor.execute(query, values)
+    result = cursor.fetchone()[0]
+    conn.close()
+    return result > 0  # Return True falls duplicate
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX ?
 def reset_database():
-    # Clears all data in the incidents table
     try:
         with get_db() as db:
             cursor = db.cursor()
             cursor.execute('DELETE FROM incidents')  # deletes all rows but keeps the table structure
+            cursor.execute('DELETE FROM malware_reports')  # deletes all rows but keeps the table structure
             db.commit()
         return jsonify({"message": "Database has been reset."}), 200
     except sqlite3.Error as e:
