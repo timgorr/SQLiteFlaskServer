@@ -20,7 +20,6 @@ app.config.update(
     SESSION_COOKIE_SECURE=True  
 )
 
-# logging MOIN
 logging.basicConfig(level=logging.INFO)
 
 
@@ -56,7 +55,7 @@ def init_db():
     )
     ''')
 
-    # Create the malware_reports table
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS malware_reports (
         report_category TEXT,

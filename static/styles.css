@@ -8,6 +8,7 @@ body {
     padding-top: 40px; 
     font-family: 'Arial', sans-serif;
     background-color: #f4f4f9; 
+    width: 100%;
 }
 
 /* content */
@@ -20,7 +21,7 @@ body {
     padding: 40px;
     border-radius: 12px; 
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); 
-    max-width: 700px;
+    max-width: 900px !important;
     width: 100%;
 }
 

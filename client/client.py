@@ -39,12 +39,12 @@ malware_schema = {
         "report_category": {"type": "string", "enum": ["eu.acdc.malware"]},
         "report_type": {"type": "string"},
         "timestamp": {"type": "string", "format": "date-time"},
-        "source_key": {"type": "string"},
+        "source_key": {"type": "string", "enum": ["malware"]},
         "source_value": {"type": "string"},
         "cpe": {"type": "string"},
         "sample_b64": {"type": "string"},
-        "confidence_level": {"type": "number"},
-        "version": {"type": "integer"}
+        "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "version": {"type": "integer", "enum": [2]}
     },
     "required": [
         "report_category",
