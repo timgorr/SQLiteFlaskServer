@@ -61,9 +61,15 @@ malware_schema = {
 json_folder = os.path.expanduser('/home/client/client_data_M')  
 
 
-server_url = 'http://192.168.162.241:5001/upload-json-files'
 
-# validate data depending on category
+with open('config.json', 'r') as file:
+    config = json.load(file)
+
+server_url = config['server']['url']
+
+print(f"Server URL: {server_url}")
+
+
 def validate_report(data):
     try:
         if data.get("report_category") == "eu.acdc.attack":
@@ -117,8 +123,4 @@ def process_files():
             except json.JSONDecodeError:
                 print(f"Failed to parse JSON in {filename}")
             except Exception as e:
-                print(f"An error occurred while processing {filename}: {e}")
-
-
-if __name__ == '__main__':
-    process_files()
+               

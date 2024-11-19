@@ -1,0 +1,5 @@
+{
+    "server": {
+        "url": "http://192.168.162.241:5001/upload-json-files"
+    }
+}
