@@ -78,8 +78,6 @@ config = read_config('config.txt')
 
 server_url = config.get('server_url')
 
-print(f"Server URL: {server_url}")
-
 
 
 
