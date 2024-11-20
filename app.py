@@ -250,7 +250,7 @@ def upload_json_files():
         return jsonify({"message": "Errors occurred while uploading JSON data."}), 400
 
 
-# duplicate check in incidents table
+
 def is_duplicate(data):
     conn = get_db()
     cursor = conn.cursor()
@@ -270,7 +270,7 @@ def is_duplicate(data):
     cursor.execute(query, values)
     result = cursor.fetchone()[0]
     conn.close()
-    return result > 0  # Return True falls duplicate
+    return result > 0  
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX ?

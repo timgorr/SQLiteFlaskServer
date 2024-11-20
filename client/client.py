@@ -62,14 +62,27 @@ json_folder = os.path.expanduser('/home/client/client_data_M')
 
 
 
-with open('config.json', 'r') as file:
-    config = json.load(file)
+def read_config(file_path):
+    config = {}
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("#") or not line:
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                config[key.strip()] = value.strip()
+    return config
 
-server_url = config['server']['url']
+config = read_config('config.txt')
+
+server_url = config.get('server_url')
 
 print(f"Server URL: {server_url}")
 
-# validate data depending on category
+
+
+
 def validate_report(data):
     try:
         if data.get("report_category") == "eu.acdc.attack":
