@@ -174,16 +174,14 @@ def insert_into_malware_reports(data):
             cursor = db.cursor()
             cursor.execute(
                 '''INSERT INTO malware_reports 
-                (report_category, report_type, timestamp, source_key, source_value, cpe, sample_b64, confidence_level, version) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (report_category, report_type, timestamp, source_key, source_value,  confidence_level, version) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)''',
                 (
                     data['report_category'],
                     data['report_type'],
                     data['timestamp'],
                     data['source_key'],
                     data['source_value'],
-                    data['cpe'],
-                    data['sample_b64'],
                     data['confidence_level'],
                     data['version']
                 )

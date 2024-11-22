@@ -41,8 +41,6 @@ malware_schema = {
         "timestamp": {"type": "string", "format": "date-time"},
         "source_key": {"type": "string", "enum": ["malware"]},
         "source_value": {"type": "string"},
-        "cpe": {"type": "string"},
-        "sample_b64": {"type": "string"},
         "confidence_level": {"type": "number", "minimum": 0.0, "maximum": 1.0},
         "version": {"type": "integer", "enum": [2]}
     },
