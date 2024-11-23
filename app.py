@@ -40,7 +40,6 @@ def init_db():
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS incidents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
         report_category TEXT,
         report_type TEXT,
         timestamp TEXT,
@@ -146,28 +145,6 @@ def insert_into_incidents(data):
         return False  # Duplicate found
 
 
-def is_malware_duplicate(data):
-    conn = get_db()
-    cursor = conn.cursor()
-    query = """
-    SELECT COUNT(*) FROM malware_reports 
-    WHERE report_category = ? AND report_type = ? AND timestamp = ? 
-    AND source_key = ? AND source_value = ?
-    """
-    values = (
-        data['report_category'],
-        data['report_type'],
-        data['timestamp'],
-        data['source_key'],
-        data['source_value']
-    )
-    cursor.execute(query, values)
-    result = cursor.fetchone()[0]
-    conn.close()
-    return result > 0  # true falls duplicate gefunden
-
-
-
 def insert_into_malware_reports(data):
     try:
         with get_db() as db:
@@ -198,7 +175,6 @@ def insert_into_malware_reports(data):
 @app.route('/upload-json-files', methods=['POST'])
 @csrf.exempt  # Disable CSRF if you're calling via AJAX
 def upload_json_files():
-    # check ob überhaupt in json
     if not request.is_json:
         return jsonify({"message": "Invalid input, JSON data required."}), 400
 
@@ -268,7 +244,31 @@ def is_duplicate(data):
     cursor.execute(query, values)
     result = cursor.fetchone()[0]
     conn.close()
-    return result > 0  
+    return result > 0
+
+
+
+def is_malware_duplicate(data):
+    conn = get_db()
+    cursor = conn.cursor()
+    query = """
+    SELECT COUNT(*) FROM malware_reports 
+    WHERE report_category = ? AND report_type = ? AND timestamp = ? 
+    AND source_key = ? AND source_value = ?
+    """
+    values = (
+        data['report_category'],
+        data['report_type'],
+        data['timestamp'],
+        data['source_key'],
+        data['source_value']
+    )
+    cursor.execute(query, values)
+    result = cursor.fetchone()[0]
+    conn.close()
+    return result > 0  # true falls duplicate gefunden  
+
+
 
 @app.route('/reset-database', methods=['POST'])
 @csrf.exempt  # Disable CSRF for this route if you're calling it via AJAX ?

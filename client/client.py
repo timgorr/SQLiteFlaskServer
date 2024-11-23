@@ -4,6 +4,25 @@ import requests
 from jsonschema import validate, ValidationError, FormatChecker
 
 
+json_folder = os.path.expanduser('/home/client/client_data_M')  
+
+
+def read_config(file_path):
+    config = {}
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line.startswith("#") or not line:
+                continue
+            if "=" in line:
+                key, value = line.split("=", 1)
+                config[key.strip()] = value.strip()
+    return config
+
+config = read_config('config.txt')
+
+server_url = config.get('server_url')
+
 attack_schema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "This document records the details of an incident",
@@ -56,28 +75,6 @@ malware_schema = {
 }
 
 
-json_folder = os.path.expanduser('/home/client/client_data_M')  
-
-
-
-def read_config(file_path):
-    config = {}
-    with open(file_path, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if line.startswith("#") or not line:
-                continue
-            if "=" in line:
-                key, value = line.split("=", 1)
-                config[key.strip()] = value.strip()
-    return config
-
-config = read_config('config.txt')
-
-server_url = config.get('server_url')
-
-
-
 
 def validate_report(data):
     try:
@@ -104,7 +101,6 @@ def process_files():
     if not os.path.exists(json_folder):
         print("JSON folder not found.")
         return
-
     json_files = [f for f in os.listdir(json_folder) if f.endswith('.json')]
     
     if not json_files:
